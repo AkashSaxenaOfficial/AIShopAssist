@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Shop Assist - Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        #chat {
+            height: 400px;
+            border: 1px solid #ccc;
+            padding: 10px;
+            overflow-y: auto;
+            margin-bottom: 10px;
+        }
+        #input {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 10px;
+        }
+        button {
+            padding: 10px 20px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        .message {
+            margin-bottom: 10px;
+            padding: 10px;
+            border-radius: 5px;
+        }
+        .user {
+            background-color: #e9ecef;
+            margin-left: 20%;
+        }
+        .assistant {
+            background-color: #007bff;
+            color: white;
+            margin-right: 20%;
+        }
+        .system {
+            background-color: #28a745;
+            color: white;
+            text-align: center;
+            margin: 10px 0;
+        }
+        #conversation-id {
+            font-size: 0.8em;
+            color: #666;
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+<body>
+    <h1>AI Shop Assist - Test</h1>
+    <div id="conversation-id"></div>
+    <div id="chat"></div>
+    <input type="text" id="input" placeholder="Type your message...">
+    <button onclick="sendMessage()">Send</button>
+
+    <script>
+        const chat = document.getElementById('chat');
+        const input = document.getElementById('input');
+        const conversationIdDisplay = document.getElementById('conversation-id');
+        let ws = null;
+        let conversationId = null;
+
+        function connect() {
+            ws = new WebSocket('ws://localhost:8081');
+            
+            ws.onopen = () => {
+                console.log('Connected to WebSocket');
+                addMessage('System', 'Connecting to AI Assistant...', 'system');
+            };
+            
+            ws.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+                
+                if (data.type === 'connection_established') {
+                    conversationId = data.conversation_id;
+                    conversationIdDisplay.textContent = `Conversation ID: ${conversationId}`;
+                    addMessage('System', 'Connected to AI Assistant', 'system');
+                } else if (data.error) {
+                    addMessage('Error', data.error, 'assistant');
+                } else {
+                    addMessage('Assistant', data.response, 'assistant');
+                }
+            };
+            
+            ws.onclose = () => {
+                console.log('Disconnected from WebSocket');
+                addMessage('System', 'Disconnected from AI Assistant. Reconnecting...', 'system');
+                // Try to reconnect after 5 seconds
+                setTimeout(connect, 5000);
+            };
+        }
+
+        function addMessage(sender, text, type) {
+            const message = document.createElement('div');
+            message.className = `message ${type}`;
+            message.innerHTML = `<strong>${sender}:</strong> ${text}`;
+            chat.appendChild(message);
+            chat.scrollTop = chat.scrollHeight;
+        }
+
+        function sendMessage() {
+            const message = input.value.trim();
+            if (message && ws && ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify({ message }));
+                addMessage('You', message, 'user');
+                input.value = '';
+            }
+        }
+
+        // Connect when page loads
+        connect();
+
+        // Allow sending message with Enter key
+        input.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                sendMessage();
+            }
+        });
+    </script>
+</body>
+</html> 
